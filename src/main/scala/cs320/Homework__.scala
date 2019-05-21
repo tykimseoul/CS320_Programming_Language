@@ -11,7 +11,7 @@ trait Homework {
   }
 
   // pass/fail
-  var alertOnlyFail: Boolean = true
+  var alertOnlyFail: Boolean = false
   private def pass: Unit = if (!alertOnlyFail)
     println(s"PASS [$getCSInfo]")
   private def fail(msg: String): Unit =
@@ -23,8 +23,7 @@ trait Homework {
     if (input == output) pass
     else fail(s"$input is not equal to $output")
   } catch {
-    case PLError(eMsg) => fail(eMsg)
-    case e: Throwable => fail(s"an unexpected error: ${e.getStackTrace.mkString("\n")}")
+    case e: Throwable => fail(e.getMessage)
   }
 
   // Define errors
@@ -35,10 +34,10 @@ trait Homework {
   def testExc[T](input: =>T, msg: String): Unit = try {
     fail(s"it should throw an error but result is $input")
   } catch {
-    case PLError(eMsg) =>
+    case e: Throwable =>
+      val eMsg = e.getMessage
       if (eMsg.contains(msg)) pass
       else fail(s""""$eMsg" does not contain "$msg"""")
-    case e: Throwable => fail(s"an unexpected error: ${e.getStackTrace.mkString("\n")}")
   }
 
   // Cast types with error messages for failure cases

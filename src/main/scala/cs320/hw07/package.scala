@@ -25,7 +25,7 @@ package object hw07 extends Homework07 {
   }
 
   def interpret(kxcfae: KXCFAE, env: Env, k: Cont): KXCFAEValue = {
-//    println(s"in interp: $kxcfae")
+    //    println(s"in interp: $kxcfae")
     kxcfae match {
       case Num(n) => k(NumV(n))
       case Add(l, r) =>
@@ -68,7 +68,7 @@ package object hw07 extends Homework07 {
                     }
                     interpret(b, temp, k)
                   case ContV(kv) =>
-                    if(args.length!=1){
+                    if (args.length != 1) {
                       error("wrong arity for continuation")
                     }
                     kv(kxcfaeValueList.head)
@@ -155,5 +155,20 @@ package object hw07 extends Homework07 {
     test(run("{try {if0 {- 1 1} {try {+ {throw} 1} catch 2} 4} catch 6}"), "2")
     test(run("{withcc esc {{fun {x y} {try {+ x {throw}} catch {throw}}} 1 {esc 3}}}"), "3")
     testExc(run("{withcc esc {{fun {x y} {esc {try {+ x {throw}} catch {throw}}}} 1 3}}"), "no enclosing try-catch")
+    test(run("{+ {withcc k {k 5}} 3}"), "8")
+    test(run("{{fun {f x} {f f x}} {fun {g y} {if0 {- y 1} 1 {+ y {g g {- y 1}}}}} 5}"), "15")
+    test(run("{withcc done {{fun {f x} {f f x}} {fun {g y} {if0 {- y 1} {done 6} {+ y {g g {- y 1}}}}} 10}}"), "6")
+    test(run("{withcc k {- 0 {k 10}}}"), "10")
+    test(run("{{fun {a b c} {- {+ {withcc k {+ {k 100} a}} b} c}} 100 200 100}"), "200")
+    test(run("{withcc esc {{fun {x y} x} 1 {esc 8}}}"), "8")
+    test(run("{{withcc esc {{fun {x y} {fun {z} {+ z y}}} 1 {withcc k {esc k}}}} 10}"), "20")
+    test(run("{try {{fun {f x} {f f x}} {fun {g y} {if0 {- y 1} {throw} {+ y {g g {- y 1}}}}} 10} catch 8}"), "8")
+    test(run("{{fun {f x} {f f x}} {fun {g y} {if0 {- y 1} {throw} {try {+ y {g g {- y 1}}} catch y}}} 6}"), "20")
+    test(run("{+ {try {- 10 {throw}} catch 6} 10}"), "16")
+    test(run("{try {if0 {throw} 3 4} catch 5}"), "5")
+    test(run("{try {{fun {x y} {try x catch y}} {throw} 0} catch -1}"), "-1")
+    test(run("{try {withcc xxx {{fun {x y z w} {+ {+ x y} {+ z w}}} 1 2 {throw} {xxx 10}}} catch 42}"), "42")
+    test(run("{withcc esc {try {+ {throw} {esc 3}} catch 4}}"), "4")
+    test(run("{+ 12 {withcc k {+ 1 {k {{fun {} 6}}}}}}"), "18")
   }
 }

@@ -31,6 +31,8 @@ package object hw09 extends Homework09 {
     case NumV(num) => num.toString
     case BoolV(b) => b.toString
     case CloV(_, _, _) => "function"
+    case VariantV(_, _) => "variant"
+    case ConstructorV(_) => "constructor"
   }
 
   def interpHelper(corel: COREL, env: Env): CORELValue =
@@ -40,9 +42,9 @@ package object hw09 extends Homework09 {
       case Add(l, r) => NumV(unwrapNum(interpHelper(l, env)) + unwrapNum(interpHelper(r, env)))
       case Sub(l, r) => NumV(unwrapNum(interpHelper(l, env)) - unwrapNum(interpHelper(r, env)))
       case Equ(l, r) => BoolV(interpHelper(l, env) == interpHelper(r, env))
-      case With(name, ty, expr, body) => interpHelper(body, env + (name -> interpHelper(expr, env)))
+      case With(name, _, expr, body) => interpHelper(body, env + (name -> interpHelper(expr, env)))
       case Id(name) => env.getOrElse(name, error("key not found"))
-      case Fun(param, paramty, body) => CloV(param, body, env)
+      case Fun(param, _, body) => CloV(param, body, env)
       case App(funE, argE) => interpHelper(funE, env) match {
         case CloV(param, body, fenv) =>
           interpHelper(body, fenv + (param -> interpHelper(argE, env)))
@@ -56,7 +58,7 @@ package object hw09 extends Homework09 {
         case BoolV(false) => interpHelper(elseE, env)
         case _ => error("not a boolean")
       }
-      case Rec(fname, fty, pname, pty, body) =>
+      case Rec(fname, _, pname, _, body) =>
         val cloV = CloV(pname, body, env)
         cloV.env = env + (fname -> cloV)
         cloV
@@ -94,24 +96,23 @@ package object hw09 extends Homework09 {
     case With(name, ty, expr, body) =>
       mustSame(checkHelper(expr, tEnv), ty)
       checkHelper(body, tEnv.addVar(name, ty))
-    case Id(name) =>
-      tEnv.vars.getOrElse(name, error(s"no type: $name is a free identifier"))
+    case Id(name) => tEnv.vars.getOrElse(name, error(s"no type: $name is a free identifier"))
     case Fun(param, paramty, body) =>
       validType(paramty, tEnv)
       ArrowT(paramty, checkHelper(body, tEnv.addVar(param, paramty)))
     case App(funE, argE) =>
       val funT = checkHelper(funE, tEnv)
       val argT = checkHelper(argE, tEnv)
-      println(funT, argT)
       funT match {
         case ArrowT(param, result) if same(argT, param) => result
         case _ => error(s"no type: apply $argT to $funT")
       }
     case IfThenElse(testE, thenE, elseE) =>
-      println(s"if: $testE, $thenE, $elseE")
       mustSame(checkHelper(testE, tEnv), BoolT)
       mustSame(checkHelper(thenE, tEnv), checkHelper(elseE, tEnv))
     case Rec(fname, fty, pname, pty, body) =>
+      validType(fty, tEnv)
+      validType(pty, tEnv)
       mustSame(fty, ArrowT(pty, checkHelper(body, tEnv.addVar(fname, fty).addVar(pname, pty))))
     case WithType(name, constructors, body) =>
       val extendedEnv = constructors.foldLeft(tEnv.addTBind(name, constructors)) {
@@ -240,5 +241,46 @@ package object hw09 extends Homework09 {
                 }
             }
       """), "1")
+    test(run(
+      """
+              {{recfun {f: {num -> num} x: num}
+                       {if {= x 0} 0 {if {= x 1} 1 {+ {f {- x 1}} {f {- x 2}}}}}}
+               6}"""), "8")
+    test(run(
+      """
+        |{withtype
+        |     {fruit {apple bool} {banana bool}}
+        |           {cases fruit {apple {if true false true}}
+        |                        {apple {x} {if x {with {x:num 1} x} 45}}
+        |                        {banana {x} 6}
+        |                }
+        |            }
+      """.stripMargin), "45")
+    test(run("{withtype {fruit {apple num}} {apple 5}}"), "variant")
+    test(run("{withtype {fruit {apple num} {banana num}} apple}"), "constructor")
+    testExc(run(
+      """
+              {withtype
+                {fruit {apple num}
+                       {banana bool}}
+                {cases fruit {banana true}
+                       {apple {x} x}
+                       {banana {y} y}}}"""), "no type")
+    test(run(
+      """
+              {withtype
+                {fruit {apple bool}
+                       {banana num}}
+                {cases fruit {apple true}
+                       {apple {x} x}
+                       {banana {y} true}}}"""), "true")
+    testExc(run(
+      """
+      {withtype
+        {fruit {apple num}
+               {banana bool}}
+        {cases fruit {apple 1}
+               {apple {x} x}
+               {banana {y} true}}}"""), "no type")
   }
 }

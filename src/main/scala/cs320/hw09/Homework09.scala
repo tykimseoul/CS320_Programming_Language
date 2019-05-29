@@ -130,7 +130,6 @@ trait Homework09 extends Homework with RegexParsers {
   // Type-check and interpretation of a given expression contained in a string
   def run(str: String): String = {
     typeCheck(str)
-//    println(s"------type check passed: $str")
     interp(str)
   }
 
